@@ -1,0 +1,42 @@
+name: Deploy Screeps Bundle
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Screeps
+        run: npm run deploy:screeps
+        env:
+          SCREEPS_TOKEN: ${{ secrets.SCREEPS_TOKEN }}
+          SCREEPS_BRANCH: ${{ vars.SCREEPS_BRANCH || 'default' }}
+          SCREEPS_HOST: screeps.com
+          SCREEPS_PORT: 443
+          SCREEPS_PROTOCOL: https
