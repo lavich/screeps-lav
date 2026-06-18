@@ -1,7 +1,14 @@
 import type { TaskMemory } from "../tasks/Task";
 
 export class CreepExecutor {
+  private readonly fleeRange = 5;
+
   public run(creep: Creep, task: TaskMemory | undefined): void {
+    if (this.shouldFlee(creep)) {
+      this.flee(creep);
+      return;
+    }
+
     if (!task) {
       this.idle(creep);
       return;
@@ -23,6 +30,26 @@ export class CreepExecutor {
       case "pickup":
         return this.pickup(creep, task);
     }
+  }
+
+  private shouldFlee(creep: Creep): boolean {
+    const hostile = creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+    return !!hostile && creep.pos.getRangeTo(hostile) <= this.fleeRange;
+  }
+
+  private flee(creep: Creep): void {
+    const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+    if (spawn && creep.pos.getRangeTo(spawn) > 1) {
+      creep.moveTo(spawn, { visualizePathStyle: { stroke: "#ff0000" } });
+      return;
+    }
+
+    const hostile = creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
+    if (!hostile) return;
+
+    const direction = creep.pos.getDirectionTo(hostile);
+    const opposite = ((direction + 3) % 8 + 1) as DirectionConstant;
+    creep.move(opposite);
   }
 
   private idle(creep: Creep): void {
