@@ -2,6 +2,7 @@ import type { TaskMemory } from "../tasks/Task";
 
 export class CreepExecutor {
   private readonly fleeRange = 5;
+  private readonly fleeCooldown = 5;
 
   public run(creep: Creep, task: TaskMemory | undefined): void {
     if (this.shouldFlee(creep)) {
@@ -34,13 +35,24 @@ export class CreepExecutor {
 
   private shouldFlee(creep: Creep): boolean {
     const hostile = creep.pos.findClosestByRange(FIND_HOSTILE_CREEPS);
-    return !!hostile && creep.pos.getRangeTo(hostile) <= this.fleeRange;
+    if (hostile && creep.pos.getRangeTo(hostile) <= this.fleeRange) {
+      creep.memory.fleeUntil = Game.time + this.fleeCooldown;
+      return true;
+    }
+
+    return (creep.memory.fleeUntil ?? 0) > Game.time;
   }
 
   private flee(creep: Creep): void {
     const spawn = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
-    if (spawn && creep.pos.getRangeTo(spawn) > 1) {
+    if (spawn) {
       creep.moveTo(spawn, { visualizePathStyle: { stroke: "#ff0000" } });
+      return;
+    }
+
+    const controller = creep.room.controller;
+    if (controller) {
+      creep.moveTo(controller, { visualizePathStyle: { stroke: "#ff0000" } });
       return;
     }
 

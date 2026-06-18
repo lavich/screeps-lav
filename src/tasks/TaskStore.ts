@@ -38,4 +38,12 @@ export class TaskStore {
 
     Memory.tasks[task.id] = { ...task, assignedTo: undefined };
   }
+
+  public releaseByRoom(roomName: string): void {
+    for (const task of Object.values(Memory.tasks)) {
+      if (task.roomName === roomName) {
+        this.release(task);
+      }
+    }
+  }
 }

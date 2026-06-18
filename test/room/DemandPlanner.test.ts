@@ -6,6 +6,7 @@ const baseSnapshot = (overrides?: Partial<RoomSnapshot>): RoomSnapshot => ({
   roomName: "W1N1",
   tick: 12345,
   level: 1,
+  controllerPos: undefined,
   energyAvailable: 300,
   energyCapacityAvailable: 300,
   sources: [],
@@ -14,15 +15,18 @@ const baseSnapshot = (overrides?: Partial<RoomSnapshot>): RoomSnapshot => ({
   energySinks: [],
   constructionSites: [],
   damagedStructures: [],
+  hostiles: [],
   ...overrides,
 });
 
-const source = (id: string) => ({ id: id as Id<Source>, pos: { roomName: "W1N1", x: 10, y: 10 } as RoomPosition });
-const store = (id: string) => ({ id: id as Id<StructureContainer>, structureType: STRUCTURE_CONTAINER, pos: { roomName: "W1N1", x: 10, y: 10 } as RoomPosition, energy: 100 });
-const drop = (id: string) => ({ id: id as Id<Resource>, pos: { roomName: "W1N1", x: 10, y: 10 } as RoomPosition, amount: 100 });
-const sink = (id: string) => ({ id: id as Id<StructureSpawn>, structureType: STRUCTURE_SPAWN, pos: { roomName: "W1N1", x: 10, y: 10 } as RoomPosition, store: { getFreeCapacity: () => 100 } } as StructureSpawn);
-const site = (id: string) => ({ id: id as Id<ConstructionSite>, pos: { roomName: "W1N1", x: 10, y: 10 } as RoomPosition });
-const damaged = (id: string, hits: number, hitsMax: number) => ({ id: id as Id<Structure>, structureType: STRUCTURE_ROAD, pos: { roomName: "W1N1", x: 10, y: 10 } as RoomPosition, hits, hitsMax });
+const pos = (x: number, y: number) => ({ roomName: "W1N1", x, y } as RoomPosition);
+const source = (id: string, x = 10, y = 10) => ({ id: id as Id<Source>, pos: pos(x, y) });
+const store = (id: string, x = 10, y = 10) => ({ id: id as Id<StructureContainer>, structureType: STRUCTURE_CONTAINER, pos: pos(x, y), energy: 100 });
+const drop = (id: string, x = 10, y = 10) => ({ id: id as Id<Resource>, pos: pos(x, y), amount: 100 });
+const sink = (id: string, x = 10, y = 10) => ({ id: id as Id<StructureSpawn>, structureType: STRUCTURE_SPAWN, pos: pos(x, y), store: { getFreeCapacity: () => 100 } } as StructureSpawn);
+const site = (id: string, x = 10, y = 10) => ({ id: id as Id<ConstructionSite>, pos: pos(x, y) });
+const damaged = (id: string, hits: number, hitsMax: number, x = 10, y = 10) => ({ id: id as Id<Structure>, structureType: STRUCTURE_ROAD, pos: pos(x, y), hits, hitsMax });
+const hostile = (id: string, x = 10, y = 10) => ({ id: id as Id<Creep>, pos: pos(x, y) });
 
 describe("DemandPlanner", () => {
   const planner = new DemandPlanner();
@@ -97,22 +101,22 @@ describe("DemandPlanner", () => {
     });
   });
 
-    it("creates repair demands only for structures below min(hitsMax, 10000)", () => {
-      const snap = baseSnapshot({
-        level: 2,
-        damagedStructures: [
-          damaged("d1", 100, 1000),
-          damaged("d2", 4999, 5000),
-          damaged("d3", 10000, 20000),
-        ],
-      });
-      const demands = planner.plan(snap);
-      const repairDemands = demands.filter(d => d.kind === "repair");
-      const repairIds = repairDemands.map(d => d.targetId);
-      expect(repairIds).toContain("d1");
-      expect(repairIds).toContain("d2");
-      expect(repairIds).not.toContain("d3");
+  it("creates repair demands only for structures below min(hitsMax, 10000)", () => {
+    const snap = baseSnapshot({
+      level: 2,
+      damagedStructures: [
+        damaged("d1", 100, 1000),
+        damaged("d2", 4999, 5000),
+        damaged("d3", 10000, 20000),
+      ],
     });
+    const demands = planner.plan(snap);
+    const repairDemands = demands.filter(d => d.kind === "repair");
+    const repairIds = repairDemands.map(d => d.targetId);
+    expect(repairIds).toContain("d1");
+    expect(repairIds).toContain("d2");
+    expect(repairIds).not.toContain("d3");
+  });
 
   it("sorts repair by worst hits/hitsMax ratio first", () => {
     const snap = baseSnapshot({
@@ -187,5 +191,118 @@ describe("DemandPlanner", () => {
     expect(kinds).toContain("build");
     expect(kinds).toContain("repair");
     expect(kinds).toContain("upgrade");
+  });
+
+  describe("danger zone", () => {
+    it("skips mine demands for sources near a hostile", () => {
+      const snap = baseSnapshot({
+        sources: [source("s1", 10, 10), source("s2", 30, 30)],
+        hostiles: [hostile("h1", 10, 10)],
+      });
+      const demands = planner.plan(snap);
+      const mineDemands = demands.filter(d => d.kind === "mine");
+      expect(mineDemands).toHaveLength(1);
+      expect(mineDemands[0].targetId).toBe("s2");
+    });
+
+    it("skips pickup demands for drops near a hostile", () => {
+      const snap = baseSnapshot({
+        droppedEnergy: [drop("r1", 10, 10), drop("r2", 30, 30)],
+        hostiles: [hostile("h1", 10, 10)],
+      });
+      const demands = planner.plan(snap);
+      const pickupDemands = demands.filter(d => d.kind === "pickup");
+      expect(pickupDemands).toHaveLength(1);
+      expect(pickupDemands[0].targetId).toBe("r2");
+    });
+
+    it("skips withdraw demands for stores near a hostile", () => {
+      const snap = baseSnapshot({
+        energyStores: [store("st1", 10, 10), store("st2", 30, 30)],
+        hostiles: [hostile("h1", 10, 10)],
+      });
+      const demands = planner.plan(snap);
+      const withdrawDemands = demands.filter(d => d.kind === "withdraw");
+      expect(withdrawDemands).toHaveLength(1);
+      expect(withdrawDemands[0].targetId).toBe("st2");
+    });
+
+    it("skips fill demands for sinks near a hostile", () => {
+      const snap = baseSnapshot({
+        energySinks: [sink("sp1", 10, 10), sink("sp2", 30, 30)],
+        hostiles: [hostile("h1", 10, 10)],
+      });
+      const demands = planner.plan(snap);
+      const fillDemands = demands.filter(d => d.kind === "fill");
+      expect(fillDemands).toHaveLength(1);
+      expect(fillDemands[0].targetId).toBe("sp2");
+    });
+
+    it("skips build demands for sites near a hostile", () => {
+      const snap = baseSnapshot({
+        constructionSites: [site("c1", 10, 10), site("c2", 30, 30)],
+        hostiles: [hostile("h1", 10, 10)],
+      });
+      const demands = planner.plan(snap);
+      const buildDemands = demands.filter(d => d.kind === "build");
+      expect(buildDemands).toHaveLength(1);
+      expect(buildDemands[0].targetId).toBe("c2");
+    });
+
+    it("skips repair demands for structures near a hostile", () => {
+      const snap = baseSnapshot({
+        level: 2,
+        damagedStructures: [
+          damaged("d1", 500, 1000, 10, 10),
+          damaged("d2", 500, 1000, 30, 30),
+        ],
+        hostiles: [hostile("h1", 10, 10)],
+      });
+      const demands = planner.plan(snap);
+      const repairDemands = demands.filter(d => d.kind === "repair");
+      expect(repairDemands).toHaveLength(1);
+      expect(repairDemands[0].targetId).toBe("d2");
+    });
+
+    it("skips upgrade demand when controller is near a hostile", () => {
+      const snap = baseSnapshot({
+        level: 1,
+        controllerPos: pos(10, 10),
+        hostiles: [hostile("h1", 10, 10)],
+      });
+      const demands = planner.plan(snap);
+      expect(demands.some(d => d.kind === "upgrade")).toBe(false);
+    });
+
+    it("allows upgrade when controller is far from hostiles", () => {
+      const snap = baseSnapshot({
+        level: 1,
+        controllerPos: pos(30, 30),
+        hostiles: [hostile("h1", 10, 10)],
+      });
+      const demands = planner.plan(snap);
+      expect(demands.some(d => d.kind === "upgrade")).toBe(true);
+    });
+
+    it("creates all demands when no hostiles", () => {
+      const snap = baseSnapshot({
+        level: 2,
+        sources: [source("s1")],
+        droppedEnergy: [drop("r1")],
+        energyStores: [store("t1")],
+        energySinks: [sink("sp1")],
+        constructionSites: [site("c1")],
+        damagedStructures: [damaged("d1", 500, 1000)],
+      });
+      const demands = planner.plan(snap);
+      const kinds = demands.map(d => d.kind);
+      expect(kinds).toContain("mine");
+      expect(kinds).toContain("pickup");
+      expect(kinds).toContain("withdraw");
+      expect(kinds).toContain("fill");
+      expect(kinds).toContain("build");
+      expect(kinds).toContain("repair");
+      expect(kinds).toContain("upgrade");
+    });
   });
 });

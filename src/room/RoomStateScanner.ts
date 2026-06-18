@@ -24,10 +24,16 @@ export interface ResourceSnapshot {
   amount: number;
 }
 
+export interface HostileSnapshot {
+  id: Id<Creep>;
+  pos: RoomPosition;
+}
+
 export interface RoomSnapshot {
   roomName: string;
   tick: number;
   level: number;
+  controllerPos: RoomPosition | undefined;
   energyAvailable: number;
   energyCapacityAvailable: number;
   sources: SourceSnapshot[];
@@ -36,11 +42,17 @@ export interface RoomSnapshot {
   energySinks: Array<StructureSpawn | StructureExtension>;
   constructionSites: ConstructionSite[];
   damagedStructures: StructureSnapshot[];
+  hostiles: HostileSnapshot[];
 }
 
 export class RoomStateScanner {
   public scan(room: Room): RoomSnapshot {
     room.memory.lastScanned = Game.time;
+
+    const hostiles = room.find(FIND_HOSTILE_CREEPS).map(c => ({
+      id: c.id,
+      pos: c.pos
+    }));
 
     const sources = room.find(FIND_SOURCES).map(source => ({
       id: source.id,
@@ -95,6 +107,7 @@ export class RoomStateScanner {
       roomName: room.name,
       tick: Game.time,
       level: room.controller?.level ?? 0,
+      controllerPos: room.controller?.pos,
       energyAvailable: room.energyAvailable,
       energyCapacityAvailable: room.energyCapacityAvailable,
       sources,
@@ -102,7 +115,8 @@ export class RoomStateScanner {
       droppedEnergy,
       energySinks,
       constructionSites,
-      damagedStructures
+      damagedStructures,
+      hostiles
     };
   }
 }

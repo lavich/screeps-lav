@@ -1,11 +1,25 @@
 import { PRIORITY, type Demand } from "../tasks/Task";
-import type { RoomSnapshot } from "./RoomStateScanner";
+import type { HostileSnapshot, RoomSnapshot } from "./RoomStateScanner";
+
+const DANGER_RADIUS = 10;
+
+function chebyshevRange(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+function isInDangerZone(pos: { x: number; y: number }, hostiles: HostileSnapshot[]): boolean {
+  if (hostiles.length === 0) return false;
+  return hostiles.some(h => chebyshevRange(h.pos, pos) <= DANGER_RADIUS);
+}
 
 export class DemandPlanner {
   public plan(snapshot: RoomSnapshot): Demand[] {
     const demands: Demand[] = [];
+    const hostiles = snapshot.hostiles;
 
     for (const source of snapshot.sources) {
+      if (isInDangerZone(source.pos, hostiles)) continue;
+
       demands.push({
         id: `${snapshot.roomName}:mine:${source.id}`,
         roomName: snapshot.roomName,
@@ -17,6 +31,8 @@ export class DemandPlanner {
     }
 
     for (const resource of snapshot.droppedEnergy) {
+      if (isInDangerZone(resource.pos, hostiles)) continue;
+
       demands.push({
         id: `${snapshot.roomName}:pickup:${resource.id}`,
         roomName: snapshot.roomName,
@@ -28,6 +44,8 @@ export class DemandPlanner {
     }
 
     for (const store of snapshot.energyStores) {
+      if (isInDangerZone(store.pos, hostiles)) continue;
+
       demands.push({
         id: `${snapshot.roomName}:withdraw:${store.id}`,
         roomName: snapshot.roomName,
@@ -39,6 +57,8 @@ export class DemandPlanner {
     }
 
     for (const sink of snapshot.energySinks) {
+      if (isInDangerZone(sink.pos, hostiles)) continue;
+
       demands.push({
         id: `${snapshot.roomName}:fill:${sink.id}`,
         roomName: snapshot.roomName,
@@ -50,6 +70,8 @@ export class DemandPlanner {
     }
 
     for (const site of snapshot.constructionSites) {
+      if (isInDangerZone(site.pos, hostiles)) continue;
+
       demands.push({
         id: `${snapshot.roomName}:build:${site.id}`,
         roomName: snapshot.roomName,
@@ -66,6 +88,8 @@ export class DemandPlanner {
       .slice(0, Math.max(1, Math.floor(snapshot.level + 1)));
 
     for (const target of worstDamaged) {
+      if (isInDangerZone(target.pos, hostiles)) continue;
+
       demands.push({
         id: `${snapshot.roomName}:repair:${target.id}`,
         roomName: snapshot.roomName,
@@ -77,14 +101,17 @@ export class DemandPlanner {
     }
 
     if (snapshot.level > 0) {
-      demands.push({
-        id: `${snapshot.roomName}:upgrade:controller`,
-        roomName: snapshot.roomName,
-        kind: "upgrade",
-        priority: PRIORITY.UPGRADE,
-        targetId: "controller",
-        expiresAt: Game.time + 10
-      });
+      const upgradePos = snapshot.controllerPos;
+      if (!upgradePos || !isInDangerZone(upgradePos, hostiles)) {
+        demands.push({
+          id: `${snapshot.roomName}:upgrade:controller`,
+          roomName: snapshot.roomName,
+          kind: "upgrade",
+          priority: PRIORITY.UPGRADE,
+          targetId: "controller",
+          expiresAt: Game.time + 10
+        });
+      }
     }
 
     return demands;

@@ -16,6 +16,7 @@ declare global {
     homeRoom?: string;
     bodyProfile?: BodyProfile;
     generation?: number;
+    fleeUntil?: number;
   }
 }
 

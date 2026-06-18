@@ -20,6 +20,17 @@ export class RoomController {
   public run(room: Room): void {
     const snapshot = this.scanner.scan(room);
 
+    if (snapshot.hostiles.length > 0) {
+      this.taskStore.releaseByRoom(room.name);
+      this.constructionPlanner.plan(room, snapshot);
+      const demands = this.demandPlanner.plan(snapshot);
+      const tasks = demands.map(demand => this.taskFactory.fromDemand(demand));
+      this.taskStore.upsertMany(tasks);
+      this.taskScheduler.assign(room);
+      this.spawnPlanner.run(room, snapshot, demands);
+      return;
+    }
+
     this.constructionPlanner.plan(room, snapshot);
 
     const demands = this.demandPlanner.plan(snapshot);

@@ -68,8 +68,9 @@ describe("CreepExecutor", () => {
       expect(c.moveTo).not.toHaveBeenCalled();
     });
 
-    it("flees when hostile is within 5 tiles", () => {
-      const move = vi.fn(() => 0);
+    it("flees when hostile is within 5 tiles — moves toward controller", () => {
+      const moveTo = vi.fn();
+      const controller = { id: "c1" };
       const c = creep("c1", {
         pos: {
           findClosestByRange: vi.fn(() => ({ name: "Hostile1" })),
@@ -79,12 +80,14 @@ describe("CreepExecutor", () => {
         },
         store: { getFreeCapacity: vi.fn(() => 50), getUsedCapacity: vi.fn(() => 0) },
         getActiveBodyparts: vi.fn(() => 0),
-        move,
+        moveTo,
+        room: { name: "W1N1", controller },
       });
 
       executor.run(c, makeTask("harvest"));
 
-      expect(move).toHaveBeenCalled();
+      expect(moveTo).toHaveBeenCalledWith(controller, expect.any(Object));
+      expect(c.memory.fleeUntil).toBe(505);
     });
 
     it("does not flee when hostile is beyond 5 tiles", () => {
@@ -111,6 +114,7 @@ describe("CreepExecutor", () => {
     it("moves towards spawn when fleeing and spawn is reachable", () => {
       const moveTo = vi.fn();
       const spawn = { name: "Spawn1", store: { getFreeCapacity: vi.fn(() => 0) } };
+      const controller = { id: "c1" };
 
       const c = creep("c1", {
         pos: {
@@ -122,6 +126,7 @@ describe("CreepExecutor", () => {
         store: { getFreeCapacity: vi.fn(() => 50), getUsedCapacity: vi.fn(() => 0) },
         getActiveBodyparts: vi.fn(() => 0),
         moveTo,
+        room: { name: "W1N1", controller },
       });
 
       executor.run(c, makeTask("harvest"));
@@ -129,7 +134,7 @@ describe("CreepExecutor", () => {
       expect(moveTo).toHaveBeenCalledWith(spawn, expect.any(Object));
     });
 
-    it("moves opposite direction when no spawn and hostile is close", () => {
+    it("moves opposite direction when no spawn and no controller", () => {
       const move = vi.fn(() => 0);
       const c = creep("c1", {
         pos: {
@@ -141,11 +146,62 @@ describe("CreepExecutor", () => {
         store: { getFreeCapacity: vi.fn(() => 50), getUsedCapacity: vi.fn(() => 0) },
         getActiveBodyparts: vi.fn(() => 0),
         move,
+        room: { name: "W1N1" },
       });
 
       executor.run(c, makeTask("harvest"));
 
       expect(move).toHaveBeenCalledWith(5);
+    });
+
+    describe("hysteresis", () => {
+      it("keeps fleeing for fleeCooldown ticks after hostile leaves", () => {
+        const moveTo = vi.fn();
+        const controller = { id: "c1" };
+
+        const c = creep("c1", {
+          pos: {
+            findClosestByRange: vi.fn(() => null),
+            findClosestByPath: vi.fn(() => null),
+            getRangeTo: vi.fn(() => 99),
+            getDirectionTo: vi.fn(() => 1),
+          },
+          store: { getFreeCapacity: vi.fn(() => 50), getUsedCapacity: vi.fn(() => 0) },
+          getActiveBodyparts: vi.fn(() => 0),
+          moveTo,
+          room: { name: "W1N1", controller },
+          memory: { homeRoom: "W1N1", fleeUntil: 503 },
+        });
+
+        Game.time = 502;
+        executor.run(c, makeTask("harvest"));
+
+        expect(moveTo).toHaveBeenCalledWith(controller, expect.any(Object));
+      });
+
+      it("resumes task after fleeUntil expires", () => {
+        const harvest = vi.fn(() => 0);
+        const c = creep("c1", {
+          pos: {
+            findClosestByRange: vi.fn(() => null),
+            findClosestByPath: vi.fn(() => null),
+            getRangeTo: vi.fn(() => 99),
+            getDirectionTo: vi.fn(() => 1),
+          },
+          store: { getFreeCapacity: vi.fn(() => 50), getUsedCapacity: vi.fn(() => 0) },
+          getActiveBodyparts: vi.fn(part => (part === "work" ? 5 : 0)),
+          harvest,
+          moveTo: vi.fn(),
+          move: vi.fn(),
+          room: { name: "W1N1", controller: {} },
+          memory: { homeRoom: "W1N1", fleeUntil: 500 },
+        });
+
+        Game.time = 501;
+        executor.run(c, makeTask("harvest"));
+
+        expect(harvest).toHaveBeenCalled();
+      });
     });
   });
 });
