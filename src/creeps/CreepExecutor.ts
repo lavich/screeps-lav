@@ -18,8 +18,9 @@ export class CreepExecutor {
       case "upgrade":
         return this.upgrade(creep);
       case "withdraw":
+        return this.withdraw(creep, task);
       case "pickup":
-        return;
+        return this.pickup(creep, task);
     }
   }
 
@@ -42,6 +43,28 @@ export class CreepExecutor {
 
     if (creep.transfer(target, task.resourceType ?? RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
       creep.moveTo(target, { visualizePathStyle: { stroke: "#ffffff" } });
+    }
+  }
+
+  private pickup(creep: Creep, task: TaskMemory): void {
+    const resource = Game.getObjectById(task.targetId as Id<Resource>);
+    if (!resource) {
+      return;
+    }
+
+    if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(resource, { visualizePathStyle: { stroke: "#facc15" } });
+    }
+  }
+
+  private withdraw(creep: Creep, task: TaskMemory): void {
+    const target = Game.getObjectById(task.targetId as Id<StructureContainer | StructureStorage | StructureTerminal>);
+    if (!target) {
+      return;
+    }
+
+    if (creep.withdraw(target, task.resourceType ?? RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(target, { visualizePathStyle: { stroke: "#f97316" } });
     }
   }
 

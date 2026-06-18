@@ -34,7 +34,7 @@ export interface TaskMemory {
 export interface Demand {
   id: string;
   roomName: string;
-  kind: "mine" | "fill" | "upgrade" | "build" | "repair";
+  kind: "mine" | "pickup" | "withdraw" | "fill" | "upgrade" | "build" | "repair";
   priority: number;
   targetId: string;
   expiresAt: number;

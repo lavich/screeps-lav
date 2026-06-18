@@ -22,6 +22,6 @@ export class RoomController {
 
     this.taskStore.upsertMany(tasks);
     this.taskScheduler.assign(room);
-    this.spawnPlanner.run(room);
+    this.spawnPlanner.run(room, snapshot, demands);
   }
 }

@@ -11,6 +11,19 @@ export interface StructureSnapshot {
   hitsMax: number;
 }
 
+export interface EnergyStoreSnapshot {
+  id: Id<StructureContainer | StructureStorage | StructureTerminal>;
+  structureType: STRUCTURE_CONTAINER | STRUCTURE_STORAGE | STRUCTURE_TERMINAL;
+  pos: RoomPosition;
+  energy: number;
+}
+
+export interface ResourceSnapshot {
+  id: Id<Resource>;
+  pos: RoomPosition;
+  amount: number;
+}
+
 export interface RoomSnapshot {
   roomName: string;
   tick: number;
@@ -18,6 +31,8 @@ export interface RoomSnapshot {
   energyAvailable: number;
   energyCapacityAvailable: number;
   sources: SourceSnapshot[];
+  energyStores: EnergyStoreSnapshot[];
+  droppedEnergy: ResourceSnapshot[];
   energySinks: Array<StructureSpawn | StructureExtension>;
   constructionSites: ConstructionSite[];
   damagedStructures: StructureSnapshot[];
@@ -30,6 +45,27 @@ export class RoomStateScanner {
     const sources = room.find(FIND_SOURCES).map(source => ({
       id: source.id,
       pos: source.pos
+    }));
+
+    const energyStores = room.find(FIND_STRUCTURES, {
+      filter: (structure): structure is StructureContainer | StructureStorage | StructureTerminal =>
+        (structure.structureType === STRUCTURE_CONTAINER ||
+          structure.structureType === STRUCTURE_STORAGE ||
+          structure.structureType === STRUCTURE_TERMINAL) &&
+        structure.store.getUsedCapacity(RESOURCE_ENERGY) > 0
+    }).map(structure => ({
+      id: structure.id,
+      structureType: structure.structureType,
+      pos: structure.pos,
+      energy: structure.store.getUsedCapacity(RESOURCE_ENERGY)
+    }));
+
+    const droppedEnergy = room.find(FIND_DROPPED_RESOURCES, {
+      filter: resource => resource.resourceType === RESOURCE_ENERGY && resource.amount > 0
+    }).map(resource => ({
+      id: resource.id,
+      pos: resource.pos,
+      amount: resource.amount
     }));
 
     const energySinks = room.find(FIND_MY_STRUCTURES, {
@@ -62,6 +98,8 @@ export class RoomStateScanner {
       energyAvailable: room.energyAvailable,
       energyCapacityAvailable: room.energyCapacityAvailable,
       sources,
+      energyStores,
+      droppedEnergy,
       energySinks,
       constructionSites,
       damagedStructures

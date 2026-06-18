@@ -18,6 +18,20 @@ export class TaskFactory {
           type: "harvest",
           requirements: { work: 1, carry: 0, move: 1 }
         };
+      case "pickup":
+        return {
+          ...base,
+          type: "pickup",
+          resourceType: RESOURCE_ENERGY,
+          requirements: { carry: 1, move: 1 }
+        };
+      case "withdraw":
+        return {
+          ...base,
+          type: "withdraw",
+          resourceType: RESOURCE_ENERGY,
+          requirements: { carry: 1, move: 1 }
+        };
       case "fill":
         return {
           ...base,

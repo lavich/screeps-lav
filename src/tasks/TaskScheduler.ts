@@ -11,11 +11,11 @@ export class TaskScheduler {
     for (const creep of creeps) {
       const currentTask = this.taskStore.get(creep.memory.taskId);
 
-      if (currentTask && this.canExecute(creep, currentTask)) {
+      if (currentTask && currentTask.expiresAt <= Game.time) {
+        this.taskStore.release(currentTask);
+      } else if (currentTask && this.canExecute(creep, currentTask)) {
         continue;
-      }
-
-      if (currentTask) {
+      } else if (currentTask) {
         this.taskStore.release(currentTask);
       }
 
@@ -43,8 +43,9 @@ export class TaskScheduler {
   private score(creep: Creep, task: TaskMemory): number {
     const target = this.resolveTarget(creep.room, task);
     const rangePenalty = target ? creep.pos.getRangeTo(target) * 10 : 0;
-    const carriedEnergyBonus = creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && task.type !== "harvest" ? 100 : 0;
-    const emptyBonus = creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0 && task.type === "harvest" ? 100 : 0;
+    const gathersEnergy = task.type === "harvest" || task.type === "pickup" || task.type === "withdraw";
+    const carriedEnergyBonus = creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && !gathersEnergy ? 100 : 0;
+    const emptyBonus = creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0 && gathersEnergy ? 100 : 0;
 
     return task.priority * 1000 + carriedEnergyBonus + emptyBonus - rangePenalty;
   }
@@ -62,6 +63,10 @@ export class TaskScheduler {
       return creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
     }
 
+    if (task.type === "pickup" || task.type === "withdraw") {
+      return creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
+    }
+
     if (["transfer", "build", "repair", "upgrade"].includes(task.type)) {
       return creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0;
     }
@@ -69,11 +74,11 @@ export class TaskScheduler {
     return true;
   }
 
-  private resolveTarget(room: Room, task: TaskMemory): Source | Structure | ConstructionSite | StructureController | undefined {
+  private resolveTarget(room: Room, task: TaskMemory): Source | Resource | Structure | ConstructionSite | StructureController | undefined {
     if (task.targetId === "controller") {
       return room.controller;
     }
 
-    return Game.getObjectById(task.targetId as Id<Source | Structure | ConstructionSite>) ?? undefined;
+    return Game.getObjectById(task.targetId as Id<Source | Resource | Structure | ConstructionSite>) ?? undefined;
   }
 }
