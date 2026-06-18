@@ -1,35 +1,34 @@
 import { CreepExecutor } from "../creeps/CreepExecutor";
-import { DemandPlanner } from "../room/DemandPlanner";
 import { RoomController } from "../room/RoomController";
-import { RoomStateScanner } from "../room/RoomStateScanner";
-import { BodyPlanner } from "../spawn/BodyPlanner";
-import { SpawnPlanner } from "../spawn/SpawnPlanner";
-import { TaskFactory } from "../tasks/TaskFactory";
-import { TaskScheduler } from "../tasks/TaskScheduler";
 import { TaskStore } from "../tasks/TaskStore";
 
 export class Kernel {
-  private readonly taskStore = new TaskStore();
-  private readonly roomController = new RoomController(
-    new RoomStateScanner(),
-    new DemandPlanner(),
-    new TaskFactory(),
-    this.taskStore,
-    new TaskScheduler(this.taskStore),
-    new SpawnPlanner(new BodyPlanner())
-  );
-  private readonly creepExecutor = new CreepExecutor();
+  public constructor(
+    private readonly roomController: RoomController,
+    private readonly taskStore: TaskStore,
+    private readonly creepExecutor: CreepExecutor
+  ) {}
 
   public run(): void {
     for (const room of Object.values(Game.rooms)) {
-      if (room.controller?.my) {
+      if (!room.controller?.my) {
+        continue;
+      }
+
+      try {
         this.roomController.run(room);
+      } catch (error) {
+        Game.notify(`[Kernel] Error processing room ${room.name}: ${error}`);
       }
     }
 
     for (const creep of Object.values(Game.creeps)) {
-      const task = this.taskStore.get(creep.memory.taskId);
-      this.creepExecutor.run(creep, task);
+      try {
+        const task = this.taskStore.get(creep.memory.taskId);
+        this.creepExecutor.run(creep, task);
+      } catch (error) {
+        Game.notify(`[Kernel] Error executing creep ${creep.name}: ${error}`);
+      }
     }
   }
 }

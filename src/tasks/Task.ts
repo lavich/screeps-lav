@@ -31,6 +31,16 @@ export interface TaskMemory {
   requirements: CreepCapabilities;
 }
 
+export const PRIORITY = {
+  MINE: 900,
+  PICKUP: 850,
+  WITHDRAW: 825,
+  FILL: 800,
+  BUILD: 500,
+  REPAIR: 450,
+  UPGRADE: 300,
+} as const;
+
 export interface Demand {
   id: string;
   roomName: string;

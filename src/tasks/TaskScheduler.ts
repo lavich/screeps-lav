@@ -5,7 +5,9 @@ export class TaskScheduler {
   public constructor(private readonly taskStore: TaskStore) {}
 
   public assign(room: Room): void {
-    const creeps = Object.values(Game.creeps).filter(creep => creep.memory.homeRoom === room.name);
+    const creeps = Object.values(Game.creeps).filter(
+      creep => creep.memory.homeRoom && creep.memory.homeRoom === room.name
+    );
     const tasks = this.taskStore.byRoom(room.name);
 
     for (const creep of creeps) {
@@ -44,10 +46,10 @@ export class TaskScheduler {
     const target = this.resolveTarget(creep.room, task);
     const rangePenalty = target ? creep.pos.getRangeTo(target) * 10 : 0;
     const gathersEnergy = task.type === "harvest" || task.type === "pickup" || task.type === "withdraw";
-    const carriedEnergyBonus = creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && !gathersEnergy ? 100 : 0;
-    const emptyBonus = creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0 && gathersEnergy ? 100 : 0;
+    const carriedEnergyBonus = creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0 && !gathersEnergy ? 200 : 0;
+    const emptyBonus = creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0 && gathersEnergy ? 200 : 0;
 
-    return task.priority * 1000 + carriedEnergyBonus + emptyBonus - rangePenalty;
+    return task.priority * 100 + carriedEnergyBonus + emptyBonus - rangePenalty;
   }
 
   private canExecute(creep: Creep, task: TaskMemory): boolean {
@@ -60,7 +62,7 @@ export class TaskScheduler {
     }
 
     if (task.type === "harvest") {
-      return creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
+      return creep.getActiveBodyparts(WORK) > 0;
     }
 
     if (task.type === "pickup" || task.type === "withdraw") {
@@ -74,11 +76,12 @@ export class TaskScheduler {
     return true;
   }
 
-  private resolveTarget(room: Room, task: TaskMemory): Source | Resource | Structure | ConstructionSite | StructureController | undefined {
+  private resolveTarget(room: Room, task: TaskMemory): (RoomObject & _HasId) | StructureController | undefined {
     if (task.targetId === "controller") {
-      return room.controller;
+      return room.controller ?? undefined;
     }
 
-    return Game.getObjectById(task.targetId as Id<Source | Resource | Structure | ConstructionSite>) ?? undefined;
+    const target = Game.getObjectById(task.targetId as Id<RoomObject & _HasId>);
+    return target ?? undefined;
   }
 }

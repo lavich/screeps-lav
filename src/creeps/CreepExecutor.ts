@@ -3,6 +3,7 @@ import type { TaskMemory } from "../tasks/Task";
 export class CreepExecutor {
   public run(creep: Creep, task: TaskMemory | undefined): void {
     if (!task) {
+      this.idle(creep);
       return;
     }
 
@@ -24,9 +25,43 @@ export class CreepExecutor {
     }
   }
 
+  private idle(creep: Creep): void {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
+      const spawnTarget = creep.pos.findClosestByPath(FIND_MY_SPAWNS);
+      if (spawnTarget && spawnTarget.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+        if (creep.transfer(spawnTarget, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(spawnTarget, { visualizePathStyle: { stroke: "#ffffff" } });
+        }
+        return;
+      }
+
+      const extensionTarget = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+        filter: s => s.structureType === STRUCTURE_EXTENSION && s.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+      });
+      if (extensionTarget) {
+        if (creep.transfer(extensionTarget, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+          creep.moveTo(extensionTarget, { visualizePathStyle: { stroke: "#ffffff" } });
+        }
+        return;
+      }
+    }
+
+    const source = creep.pos.findClosestByPath(FIND_SOURCES);
+    if (source && creep.harvest(source) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(source, { visualizePathStyle: { stroke: "#ffaa00" } });
+    }
+  }
+
   private harvest(creep: Creep, task: TaskMemory): void {
     const source = Game.getObjectById(task.targetId as Id<Source>);
     if (!source) {
+      return;
+    }
+
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+      if (creep.pos.getRangeTo(source) > 1) {
+        creep.moveTo(source, { visualizePathStyle: { stroke: "#ffaa00" } });
+      }
       return;
     }
 
@@ -36,6 +71,10 @@ export class CreepExecutor {
   }
 
   private transfer(creep: Creep, task: TaskMemory): void {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      return;
+    }
+
     const target = Game.getObjectById(task.targetId as Id<StructureSpawn | StructureExtension>);
     if (!target) {
       return;
@@ -52,12 +91,20 @@ export class CreepExecutor {
       return;
     }
 
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+      return;
+    }
+
     if (creep.pickup(resource) === ERR_NOT_IN_RANGE) {
       creep.moveTo(resource, { visualizePathStyle: { stroke: "#facc15" } });
     }
   }
 
   private withdraw(creep: Creep, task: TaskMemory): void {
+    if (creep.store.getFreeCapacity(RESOURCE_ENERGY) === 0) {
+      return;
+    }
+
     const target = Game.getObjectById(task.targetId as Id<StructureContainer | StructureStorage | StructureTerminal>);
     if (!target) {
       return;
@@ -69,6 +116,10 @@ export class CreepExecutor {
   }
 
   private build(creep: Creep, task: TaskMemory): void {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      return;
+    }
+
     const site = Game.getObjectById(task.targetId as Id<ConstructionSite>);
     if (!site) {
       return;
@@ -80,6 +131,10 @@ export class CreepExecutor {
   }
 
   private repair(creep: Creep, task: TaskMemory): void {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      return;
+    }
+
     const structure = Game.getObjectById(task.targetId as Id<Structure>);
     if (!structure) {
       return;
@@ -91,6 +146,10 @@ export class CreepExecutor {
   }
 
   private upgrade(creep: Creep): void {
+    if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+      return;
+    }
+
     const controller = creep.room.controller;
     if (!controller) {
       return;

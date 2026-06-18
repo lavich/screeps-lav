@@ -13,7 +13,9 @@ export class TaskStore {
   }
 
   public byRoom(roomName: string): TaskMemory[] {
-    return Object.values(Memory.tasks).filter(task => task.roomName === roomName && task.expiresAt > Game.time);
+    return Object.values(Memory.tasks).filter(
+      task => task.roomName === roomName && task.expiresAt > Game.time
+    );
   }
 
   public get(taskId: string | undefined): TaskMemory | undefined {
@@ -25,9 +27,8 @@ export class TaskStore {
   }
 
   public assign(task: TaskMemory, creep: Creep): void {
-    task.assignedTo = creep.name;
+    Memory.tasks[task.id] = { ...task, assignedTo: creep.name };
     creep.memory.taskId = task.id;
-    Memory.tasks[task.id] = task;
   }
 
   public release(task: TaskMemory): void {
@@ -35,7 +36,6 @@ export class TaskStore {
       delete Game.creeps[task.assignedTo].memory.taskId;
     }
 
-    delete task.assignedTo;
-    Memory.tasks[task.id] = task;
+    Memory.tasks[task.id] = { ...task, assignedTo: undefined };
   }
 }

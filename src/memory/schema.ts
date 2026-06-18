@@ -8,6 +8,7 @@ declare global {
   interface RoomMemory {
     mode?: RoomMode;
     lastScanned?: number;
+    spawnIndex?: number;
   }
 
   interface CreepMemory {

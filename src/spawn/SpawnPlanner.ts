@@ -11,7 +11,9 @@ export class SpawnPlanner {
       return;
     }
 
-    const creeps = Object.values(Game.creeps).filter(creep => creep.memory.homeRoom === room.name);
+    const creeps = Object.values(Game.creeps).filter(
+      creep => creep.memory.homeRoom && creep.memory.homeRoom === room.name
+    );
     const profile = this.selectProfile(snapshot, demands, creeps);
     if (!profile) {
       return;
@@ -23,7 +25,9 @@ export class SpawnPlanner {
       return;
     }
 
-    const name = `${profile}-${room.name}-${Game.time}`;
+    room.memory.spawnIndex ??= 0;
+    const name = `${profile}-${room.name}-${room.memory.spawnIndex++}`;
+
     spawn.spawnCreep(body, name, {
       memory: {
         homeRoom: room.name,
@@ -48,14 +52,17 @@ export class SpawnPlanner {
 
     const hasPortableEnergy = snapshot.droppedEnergy.length > 0 || snapshot.energyStores.length > 0;
     const hasFillDemand = demands.some(demand => demand.kind === "fill");
-    const desiredHaulers = hasPortableEnergy && hasFillDemand ? 1 : 0;
+    const hasWorkDemand = demands.some(demand => demand.kind === "build" || demand.kind === "repair" || demand.kind === "upgrade");
+
+    const desiredHaulers = hasPortableEnergy && hasFillDemand
+      ? Math.max(1, Math.ceil(snapshot.energySinks.length / 3))
+      : 0;
 
     if (haulerCount < desiredHaulers) {
       return "hauler";
     }
 
-    const hasWorkDemand = demands.some(demand => demand.kind === "build" || demand.kind === "repair" || demand.kind === "upgrade");
-    const desiredWorkers = hasWorkDemand ? 1 : 0;
+    const desiredWorkers = hasWorkDemand ? Math.max(1, snapshot.constructionSites.length) : 0;
 
     if (workerCount < desiredWorkers) {
       return "worker";

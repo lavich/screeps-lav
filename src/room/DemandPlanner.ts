@@ -1,4 +1,4 @@
-import type { Demand } from "../tasks/Task";
+import { PRIORITY, type Demand } from "../tasks/Task";
 import type { RoomSnapshot } from "./RoomStateScanner";
 
 export class DemandPlanner {
@@ -10,7 +10,7 @@ export class DemandPlanner {
         id: `${snapshot.roomName}:mine:${source.id}`,
         roomName: snapshot.roomName,
         kind: "mine",
-        priority: 900,
+        priority: PRIORITY.MINE,
         targetId: source.id,
         expiresAt: Game.time + 5
       });
@@ -21,7 +21,7 @@ export class DemandPlanner {
         id: `${snapshot.roomName}:pickup:${resource.id}`,
         roomName: snapshot.roomName,
         kind: "pickup",
-        priority: 850,
+        priority: PRIORITY.PICKUP,
         targetId: resource.id,
         expiresAt: Game.time + 3
       });
@@ -32,7 +32,7 @@ export class DemandPlanner {
         id: `${snapshot.roomName}:withdraw:${store.id}`,
         roomName: snapshot.roomName,
         kind: "withdraw",
-        priority: 825,
+        priority: PRIORITY.WITHDRAW,
         targetId: store.id,
         expiresAt: Game.time + 5
       });
@@ -43,35 +43,35 @@ export class DemandPlanner {
         id: `${snapshot.roomName}:fill:${sink.id}`,
         roomName: snapshot.roomName,
         kind: "fill",
-        priority: 800,
+        priority: PRIORITY.FILL,
         targetId: sink.id,
         expiresAt: Game.time + 5
       });
     }
 
-    const firstSite = snapshot.constructionSites[0];
-    if (firstSite) {
+    for (const site of snapshot.constructionSites) {
       demands.push({
-        id: `${snapshot.roomName}:build:${firstSite.id}`,
+        id: `${snapshot.roomName}:build:${site.id}`,
         roomName: snapshot.roomName,
         kind: "build",
-        priority: 500,
-        targetId: firstSite.id,
+        priority: PRIORITY.BUILD,
+        targetId: site.id,
         expiresAt: Game.time + 10
       });
     }
 
-    const repairTarget = snapshot.damagedStructures
+    const worstDamaged = snapshot.damagedStructures
       .filter(structure => structure.hits < Math.min(structure.hitsMax, 10000))
-      .sort((left, right) => left.hits / left.hitsMax - right.hits / right.hitsMax)[0];
+      .sort((left, right) => left.hits / left.hitsMax - right.hits / right.hitsMax)
+      .slice(0, Math.max(1, Math.floor(snapshot.level + 1)));
 
-    if (repairTarget) {
+    for (const target of worstDamaged) {
       demands.push({
-        id: `${snapshot.roomName}:repair:${repairTarget.id}`,
+        id: `${snapshot.roomName}:repair:${target.id}`,
         roomName: snapshot.roomName,
         kind: "repair",
-        priority: 450,
-        targetId: repairTarget.id,
+        priority: PRIORITY.REPAIR,
+        targetId: target.id,
         expiresAt: Game.time + 10
       });
     }
@@ -81,7 +81,7 @@ export class DemandPlanner {
         id: `${snapshot.roomName}:upgrade:controller`,
         roomName: snapshot.roomName,
         kind: "upgrade",
-        priority: 300,
+        priority: PRIORITY.UPGRADE,
         targetId: "controller",
         expiresAt: Game.time + 10
       });
