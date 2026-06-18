@@ -62,7 +62,7 @@ export class TaskScheduler {
     }
 
     if (task.type === "harvest") {
-      return creep.getActiveBodyparts(WORK) > 0;
+      return creep.getActiveBodyparts(WORK) > 0 && creep.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
     }
 
     if (task.type === "pickup" || task.type === "withdraw") {

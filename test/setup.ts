@@ -3,6 +3,8 @@ import { vi } from "vitest";
 Object.assign(globalThis, {
   Game: {
     time: 12345,
+    getObjectById: () => undefined,
+    creeps: {},
   },
   Memory: {
     creeps: {},
