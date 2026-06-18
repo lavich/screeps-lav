@@ -6,6 +6,7 @@ import { SpawnPlanner } from "./spawn/SpawnPlanner";
 import { TaskStore } from "./tasks/TaskStore";
 import { TaskFactory } from "./tasks/TaskFactory";
 import { TaskScheduler } from "./tasks/TaskScheduler";
+import { ConstructionPlanner } from "./room/ConstructionPlanner";
 import { RoomStateScanner } from "./room/RoomStateScanner";
 import { DemandPlanner } from "./room/DemandPlanner";
 import { RoomController } from "./room/RoomController";
@@ -18,6 +19,7 @@ export const loop = (): void => {
   const kernel = new Kernel(
     new RoomController(
       new RoomStateScanner(),
+      new ConstructionPlanner(),
       new DemandPlanner(),
       new TaskFactory(),
       taskStore,

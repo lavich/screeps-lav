@@ -2,12 +2,14 @@ import { SpawnPlanner } from "../spawn/SpawnPlanner";
 import { TaskFactory } from "../tasks/TaskFactory";
 import { TaskScheduler } from "../tasks/TaskScheduler";
 import { TaskStore } from "../tasks/TaskStore";
+import { ConstructionPlanner } from "./ConstructionPlanner";
 import { DemandPlanner } from "./DemandPlanner";
 import { RoomStateScanner } from "./RoomStateScanner";
 
 export class RoomController {
   public constructor(
     private readonly scanner: RoomStateScanner,
+    private readonly constructionPlanner: ConstructionPlanner,
     private readonly demandPlanner: DemandPlanner,
     private readonly taskFactory: TaskFactory,
     private readonly taskStore: TaskStore,
@@ -17,6 +19,9 @@ export class RoomController {
 
   public run(room: Room): void {
     const snapshot = this.scanner.scan(room);
+
+    this.constructionPlanner.plan(room, snapshot);
+
     const demands = this.demandPlanner.plan(snapshot);
     const tasks = demands.map(demand => this.taskFactory.fromDemand(demand));
 
