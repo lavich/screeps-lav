@@ -1,0 +1,37 @@
+import { vi } from "vitest";
+
+Object.assign(globalThis, {
+  Game: {
+    time: 12345,
+  },
+  Memory: {
+    creeps: {},
+    tasks: {},
+    rooms: {},
+  },
+  RESOURCE_ENERGY: "energy",
+  WORK: "work",
+  CARRY: "carry",
+  MOVE: "move",
+  STRUCTURE_SPAWN: "spawn",
+  STRUCTURE_EXTENSION: "extension",
+  STRUCTURE_CONTAINER: "container",
+  STRUCTURE_STORAGE: "storage",
+  STRUCTURE_TERMINAL: "terminal",
+  STRUCTURE_ROAD: "road",
+  STRUCTURE_WALL: "wall",
+  STRUCTURE_RAMPART: "rampart",
+  FIND_SOURCES: 10,
+  FIND_DROPPED_RESOURCES: 11,
+  FIND_STRUCTURES: 12,
+  FIND_MY_STRUCTURES: 13,
+  FIND_MY_CONSTRUCTION_SITES: 14,
+  FIND_MY_SPAWNS: 15,
+  OK: 0,
+  ERR_NOT_IN_RANGE: -9,
+  ERR_NOT_ENOUGH_RESOURCES: -6,
+  ERR_BUSY: -4,
+  ERR_INVALID_TARGET: -7,
+  ERR_NOT_OWNER: -1,
+  ERR_NO_BODYPART: -12,
+});
